@@ -91,25 +91,26 @@ def main():
         use_api = st.checkbox("Enable API for keyword metrics")
         
         if use_api:
-            api_provider = st.selectbox(
-                "Select API Provider",
-                ["DataForSEO", "SEMrush", "Ahrefs"]
-            )
+            st.info("📊 DataForSEO provides real-time search volumes, competition metrics, and CPC data.")
             
-            if api_provider == "DataForSEO":
-                api_username = st.text_input("API Username", type="password")
-                api_password = st.text_input("API Password", type="password")
-                
-                if api_username and api_password:
-                    if st.button("Test Connection"):
-                        with st.spinner("Testing API connection..."):
-                            api_client = APIClient(api_username, api_password)
-                            if api_client.test_connection():
-                                st.success("✅ API connection successful!")
-                                st.session_state.api_client = api_client
-                                st.session_state.settings['api_enabled'] = True
-                            else:
-                                st.error("❌ API connection failed. Please check credentials.")
+            col1, col2 = st.columns(2)
+            with col1:
+                api_email = st.text_input("DataForSEO Email", type="password")
+            with col2:
+                api_key = st.text_input("DataForSEO API Key", type="password")
+            
+            if api_email and api_key:
+                if st.button("Test Connection"):
+                    with st.spinner("Testing API connection..."):
+                        api_client = APIClient(api_email, api_key)
+                        if api_client.test_connection():
+                            st.success("✅ API connection successful!")
+                            st.session_state.api_client = api_client
+                            st.session_state.settings['api_enabled'] = True
+                        else:
+                            st.error("❌ API connection failed. Please check credentials.")
+            else:
+                st.info("Enter your DataForSEO credentials to enable real-time keyword metrics")
     
     # Main content area
     tab1, tab2, tab3 = st.tabs(["📊 Analysis", "📈 Visualizations", "📚 Help"])
