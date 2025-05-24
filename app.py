@@ -5,7 +5,7 @@ An improved tool for finding keyword optimization opportunities
 
 import streamlit as st
 
-# Initial page configuration - keep this minimal
+# Set page config first - this loads quickly
 st.set_page_config(
     page_title="SEO Striking Distance Analyzer",
     page_icon="🎯",
@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize basic session state - keep this minimal
+# Initialize basic session state variables - lightweight operations
 if 'processed_data' not in st.session_state:
     st.session_state.processed_data = None
     
@@ -30,64 +30,13 @@ if 'settings' not in st.session_state:
 if 'api_client' not in st.session_state:
     st.session_state.api_client = None
 
-# Function to load all imports (lazy loading)
-@st.cache_resource
-def load_imports():
-    """Load all imports at runtime to improve startup time"""
-    import pandas as pd
-    import numpy as np
-    from typing import Dict, List, Optional, Tuple
-    import requests
-    import json
-    from datetime import datetime
-    import io
-    import base64
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    import time
-    
-    # Import custom modules
-    from utils import DataProcessor, KeywordAnalyzer, APIClient
-    from visualizations import create_opportunity_chart, create_keyword_distribution
-    
-    return {
-        "pd": pd,
-        "np": np,
-        "requests": requests,
-        "json": json,
-        "datetime": datetime,
-        "io": io,
-        "base64": base64,
-        "ThreadPoolExecutor": ThreadPoolExecutor,
-        "as_completed": as_completed,
-        "time": time,
-        "DataProcessor": DataProcessor,
-        "KeywordAnalyzer": KeywordAnalyzer,
-        "APIClient": APIClient,
-        "create_opportunity_chart": create_opportunity_chart,
-        "create_keyword_distribution": create_keyword_distribution
-    }
+# App title - loads immediately
+st.title("🎯 SEO Striking Distance Analyzer")
+st.markdown("Find and optimize your best keyword opportunities")
 
+# Import required modules only when needed, not at the top of the file
 def main():
-    """Main app function"""
-    # Load imports lazily
-    imports = load_imports()
-    
-    # Extract imports
-    pd = imports["pd"]
-    np = imports["np"]
-    DataProcessor = imports["DataProcessor"]
-    KeywordAnalyzer = imports["KeywordAnalyzer"]
-    APIClient = imports["APIClient"]
-    create_opportunity_chart = imports["create_opportunity_chart"]
-    create_keyword_distribution = imports["create_keyword_distribution"]
-    datetime = imports["datetime"]
-    io = imports["io"]
-    
-    # App title and intro
-    st.title("🎯 SEO Striking Distance Analyzer")
-    st.markdown("Find keyword opportunities that are close to ranking on page 1")
-    
-    # Sidebar configuration
+    # Create sidebar
     with st.sidebar:
         st.header("⚙️ Settings")
         
@@ -141,6 +90,9 @@ def main():
             
             if api_email and api_key:
                 if st.button("Test Connection"):
+                    # Import APIClient only when needed
+                    from utils import APIClient
+                    
                     with st.spinner("Testing API connection..."):
                         api_client = APIClient(api_email, api_key)
                         if api_client.test_connection():
@@ -152,20 +104,19 @@ def main():
             else:
                 st.info("Enter your DataForSEO credentials to enable real-time keyword metrics")
     
-    # Main content area
+    # Main content area with tabs
     tab1, tab2, tab3 = st.tabs(["📊 Analysis", "📈 Visualizations", "📚 Help"])
     
     with tab1:
-        run_analysis(pd, np, DataProcessor, KeywordAnalyzer, datetime)
+        run_analysis()
     
     with tab2:
-        show_visualizations(pd, create_opportunity_chart, create_keyword_distribution)
+        show_visualizations()
     
     with tab3:
         show_help()
 
-def run_analysis(pd, np, DataProcessor, KeywordAnalyzer, datetime):
-    """Run the striking distance analysis"""
+def run_analysis():
     # Upload files
     col1, col2 = st.columns(2)
     
@@ -188,6 +139,12 @@ def run_analysis(pd, np, DataProcessor, KeywordAnalyzer, datetime):
     # Process data when files are uploaded
     if keyword_file and crawl_file:
         if st.button("🚀 Run Analysis", type="primary"):
+            # Import heavy modules only when actually processing data
+            import pandas as pd
+            import numpy as np
+            from datetime import datetime
+            from utils import DataProcessor, KeywordAnalyzer
+            
             with st.spinner("Processing data..."):
                 try:
                     # Setup progress tracking
@@ -236,7 +193,10 @@ def run_analysis(pd, np, DataProcessor, KeywordAnalyzer, datetime):
                     st.exception(e)
 
 def display_results(results):
-    """Display analysis results"""
+    import pandas as pd
+    from datetime import datetime
+    import io
+    
     st.success(f"✅ Found {len(results)} pages with striking distance opportunities!")
     
     # Summary metrics
@@ -315,14 +275,13 @@ def display_results(results):
         
         filtered_df = filtered_df[mask]
     
-    # Show visualization
-    if not filtered_df.empty:
+    # Show visualization if we have data
+    if not filtered_df.empty and len(filtered_df) > 0:
         with st.expander("📊 Opportunity Visualization", expanded=True):
             st.subheader("Top Striking Distance Opportunities")
             
-            # Get visualizations module
-            imports = load_imports()
-            create_opportunity_chart = imports["create_opportunity_chart"]
+            # Import visualization only when needed
+            from visualizations import create_opportunity_chart
             
             fig = create_opportunity_chart(filtered_df)
             st.plotly_chart(fig, use_container_width=True)
@@ -338,12 +297,16 @@ def display_results(results):
             kw_base = f'KW{i}'
             vol_col = f'{kw_base} Vol'
             diff_col = f'{kw_base} Difficulty'
+            cpc_col = f'{kw_base} CPC'
             
             if kw_base in filtered_df.columns:
                 kw_cols.extend([kw_base, vol_col])
                 
                 if diff_col in filtered_df.columns:
                     kw_cols.append(diff_col)
+                    
+                if cpc_col in filtered_df.columns:
+                    kw_cols.append(cpc_col)
                 
                 for element in ['Title', 'H1', 'Copy']:
                     check_col = f'{kw_base} in {element}'
@@ -367,34 +330,14 @@ def display_results(results):
             )
         
         with col2:
-            # Get Excel export function from utils
+            # Excel export using minimal dependencies
             try:
-                import io
+                # Import Excel libraries only when needed
                 from io import BytesIO
-                import xlsxwriter
                 
                 buffer = BytesIO()
-                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                     filtered_df.to_excel(writer, index=False, sheet_name='Striking Distance')
-                    workbook = writer.book
-                    worksheet = writer.sheets['Striking Distance']
-                    
-                    # Add conditional formatting for True/False
-                    fmt_true = workbook.add_format({'bg_color': '#c6efce', 'font_color': '#006100'})
-                    fmt_false = workbook.add_format({'bg_color': '#ffc7ce', 'font_color': '#9c0006'})
-                    
-                    for i, col in enumerate(display_cols):
-                        if 'in' in col and col in filtered_df.columns:
-                            worksheet.conditional_format(1, i, len(filtered_df) + 1, i, 
-                                                        {'type': 'text',
-                                                         'criteria': 'containing',
-                                                         'value': 'True',
-                                                         'format': fmt_true})
-                            worksheet.conditional_format(1, i, len(filtered_df) + 1, i, 
-                                                        {'type': 'text',
-                                                         'criteria': 'containing',
-                                                         'value': 'False',
-                                                         'format': fmt_false})
                 
                 buffer.seek(0)
                 st.download_button(
@@ -408,9 +351,11 @@ def display_results(results):
     else:
         st.info("No results match your filters. Try adjusting your criteria.")
 
-def show_visualizations(pd, create_opportunity_chart, create_keyword_distribution):
-    """Show visualizations of the data"""
+def show_visualizations():
     if st.session_state.processed_data is not None:
+        # Import visualization functions only when needed
+        from visualizations import create_opportunity_chart, create_keyword_distribution
+        
         results = st.session_state.processed_data
         
         col1, col2 = st.columns(2)
@@ -428,7 +373,6 @@ def show_visualizations(pd, create_opportunity_chart, create_keyword_distributio
         st.info("Run the analysis first to view visualizations")
 
 def show_help():
-    """Show help information"""
     st.subheader("📚 How to Use This Tool")
     
     with st.expander("Step 1: Export Your Data", expanded=True):
