@@ -61,7 +61,7 @@ if keyword_file is not None and crawl_file is not None:
         # Load keyword data
         df_keywords = pd.read_csv(
             keyword_file,
-            error_bad_lines=False,
+            on_bad_lines='skip',  # Updated parameter name from error_bad_lines
             low_memory=False,
             encoding="utf8",
             dtype={
@@ -93,7 +93,7 @@ if keyword_file is not None and crawl_file is not None:
 
         # Clean volume data (handles Ahrefs format)
         try:
-            df_keywords["Volume"] = df_keywords["Volume"].str.replace("0-10", "0")
+            df_keywords["Volume"] = df_keywords["Volume"].str.replace("0-10", "0", regex=False)
         except AttributeError:
             pass
         
@@ -123,7 +123,7 @@ if keyword_file is not None and crawl_file is not None:
         # Load crawl data
         df_crawl = pd.read_csv(
             crawl_file,
-            error_bad_lines=False,
+            on_bad_lines='skip',  # Updated parameter name from error_bad_lines
             low_memory=False,
             encoding="utf8",
             dtype="str",
