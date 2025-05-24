@@ -4,22 +4,8 @@ An improved tool for finding keyword optimization opportunities
 """
 
 import streamlit as st
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Optional, Tuple
-import requests
-import json
-from datetime import datetime
-import io
-import base64
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import time
 
-# Import custom modules
-from utils import DataProcessor, KeywordAnalyzer, APIClient
-from visualizations import create_opportunity_chart, create_keyword_distribution
-
-# Page configuration
+# Initial page configuration - keep this minimal
 st.set_page_config(
     page_title="SEO Striking Distance Analyzer",
     page_icon="🎯",
@@ -27,11 +13,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize session state
+# Initialize basic session state - keep this minimal
 if 'processed_data' not in st.session_state:
     st.session_state.processed_data = None
-if 'api_client' not in st.session_state:
-    st.session_state.api_client = None
+    
 if 'settings' not in st.session_state:
     st.session_state.settings = {
         'min_volume': 10,
@@ -42,16 +27,71 @@ if 'settings' not in st.session_state:
         'api_enabled': False
     }
 
+if 'api_client' not in st.session_state:
+    st.session_state.api_client = None
+
+# Function to load all imports (lazy loading)
+@st.cache_resource
+def load_imports():
+    """Load all imports at runtime to improve startup time"""
+    import pandas as pd
+    import numpy as np
+    from typing import Dict, List, Optional, Tuple
+    import requests
+    import json
+    from datetime import datetime
+    import io
+    import base64
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import time
+    
+    # Import custom modules
+    from utils import DataProcessor, KeywordAnalyzer, APIClient
+    from visualizations import create_opportunity_chart, create_keyword_distribution
+    
+    return {
+        "pd": pd,
+        "np": np,
+        "requests": requests,
+        "json": json,
+        "datetime": datetime,
+        "io": io,
+        "base64": base64,
+        "ThreadPoolExecutor": ThreadPoolExecutor,
+        "as_completed": as_completed,
+        "time": time,
+        "DataProcessor": DataProcessor,
+        "KeywordAnalyzer": KeywordAnalyzer,
+        "APIClient": APIClient,
+        "create_opportunity_chart": create_opportunity_chart,
+        "create_keyword_distribution": create_keyword_distribution
+    }
+
 def main():
+    """Main app function"""
+    # Load imports lazily
+    imports = load_imports()
+    
+    # Extract imports
+    pd = imports["pd"]
+    np = imports["np"]
+    DataProcessor = imports["DataProcessor"]
+    KeywordAnalyzer = imports["KeywordAnalyzer"]
+    APIClient = imports["APIClient"]
+    create_opportunity_chart = imports["create_opportunity_chart"]
+    create_keyword_distribution = imports["create_keyword_distribution"]
+    datetime = imports["datetime"]
+    io = imports["io"]
+    
+    # App title and intro
     st.title("🎯 SEO Striking Distance Analyzer")
-    st.markdown("### Find and optimize your best keyword opportunities")
+    st.markdown("Find keyword opportunities that are close to ranking on page 1")
     
     # Sidebar configuration
     with st.sidebar:
         st.header("⚙️ Settings")
         
         # Position range settings
-        st.subheader("Position Range")
         col1, col2 = st.columns(2)
         with col1:
             st.session_state.settings['min_position'] = st.number_input(
@@ -116,53 +156,52 @@ def main():
     tab1, tab2, tab3 = st.tabs(["📊 Analysis", "📈 Visualizations", "📚 Help"])
     
     with tab1:
-        run_analysis()
+        run_analysis(pd, np, DataProcessor, KeywordAnalyzer, datetime)
     
     with tab2:
-        show_visualizations()
+        show_visualizations(pd, create_opportunity_chart, create_keyword_distribution)
     
     with tab3:
         show_help()
 
-def run_analysis():
-    st.header("Upload Your Data")
-    
+def run_analysis(pd, np, DataProcessor, KeywordAnalyzer, datetime):
+    """Run the striking distance analysis"""
+    # Upload files
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("1️⃣ Keyword Export")
+        st.subheader("1️⃣ Upload Keyword Export")
         keyword_file = st.file_uploader(
-            "Upload keyword ranking data (CSV)",
+            "Upload CSV from Ahrefs/SEMrush",
             type=['csv'],
-            help="Export from Ahrefs, SEMrush, or similar tool"
+            help="Export all organic keywords from Ahrefs/SEMrush"
         )
     
     with col2:
-        st.subheader("2️⃣ Website Crawl")
+        st.subheader("2️⃣ Upload Website Crawl")
         crawl_file = st.file_uploader(
-            "Upload website crawl data (CSV)",
+            "Upload CSV from Screaming Frog",
             type=['csv'],
-            help="Export from Screaming Frog or similar crawler"
+            help="Export from Screaming Frog with URL, Title, H1, and Body"
         )
     
+    # Process data when files are uploaded
     if keyword_file and crawl_file:
         if st.button("🚀 Run Analysis", type="primary"):
             with st.spinner("Processing data..."):
                 try:
-                    # Initialize processor
-                    processor = DataProcessor(st.session_state.settings)
-                    
-                    # Process files
+                    # Setup progress tracking
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
-                    # Step 1: Load keyword data
-                    status_text.text("Loading keyword data...")
-                    df_keywords = processor.load_keyword_data(keyword_file)
+                    # Step 1: Process keyword data
+                    status_text.text("Loading and processing keyword data...")
+                    processor = DataProcessor()
+                    df_keywords = processor.load_keyword_data(keyword_file, st.session_state.settings)
                     progress_bar.progress(0.2)
                     
-                    # Step 2: Load crawl data
-                    status_text.text("Loading crawl data...")
+                    # Step 2: Process crawl data
+                    status_text.text("Loading and processing crawl data...")
                     df_crawl = processor.load_crawl_data(crawl_file)
                     progress_bar.progress(0.4)
                     
@@ -196,7 +235,8 @@ def run_analysis():
                     st.error(f"An error occurred: {str(e)}")
                     st.exception(e)
 
-def display_results(results: pd.DataFrame):
+def display_results(results):
+    """Display analysis results"""
     st.success(f"✅ Found {len(results)} pages with striking distance opportunities!")
     
     # Summary metrics
@@ -224,175 +264,238 @@ def display_results(results: pd.DataFrame):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        min_vol_filter = st.slider(
-            "Min Total Volume",
-            min_value=0,
-            max_value=int(results['Striking Dist. Vol'].max()),
-            value=0
+        min_vol = st.number_input(
+            "Min Volume", 
+            min_value=0, 
+            value=int(results['Striking Dist. Vol'].min())
         )
     
     with col2:
-        min_kw_filter = st.slider(
-            "Min Keywords Count",
-            min_value=0,
-            max_value=int(results['KWs in Striking Dist.'].max()),
-            value=0
+        max_vol = st.number_input(
+            "Max Volume",
+            min_value=int(min_vol),
+            value=int(results['Striking Dist. Vol'].max())
         )
     
     with col3:
-        if 'Avg Difficulty' in results.columns:
-            max_diff_filter = st.slider(
-                "Max Avg Difficulty",
-                min_value=0,
-                max_value=100,
-                value=100
-            )
-        else:
-            max_diff_filter = 100
+        kw_filter = st.selectbox(
+            "Filter Keywords",
+            options=["All", "With Opportunities Only", "Without Any Optimization"]
+        )
     
     # Apply filters
-    filtered_results = results[
-        (results['Striking Dist. Vol'] >= min_vol_filter) &
-        (results['KWs in Striking Dist.'] >= min_kw_filter)
+    filtered_df = results.copy()
+    
+    # Volume filter
+    filtered_df = filtered_df[
+        (filtered_df['Striking Dist. Vol'] >= min_vol) & 
+        (filtered_df['Striking Dist. Vol'] <= max_vol)
     ]
     
-    if 'Avg Difficulty' in results.columns:
-        filtered_results = filtered_results[filtered_results['Avg Difficulty'] <= max_diff_filter]
-    
-    # Display table
-    st.subheader(f"📋 Results ({len(filtered_results)} pages)")
-    
-    # Configure display columns
-    display_cols = ['URL', 'Title', 'Striking Dist. Vol', 'KWs in Striking Dist.']
-    for i in range(1, 6):
-        if f'KW{i}' in filtered_results.columns:
-            display_cols.extend([f'KW{i}', f'KW{i} Vol'])
-            if st.session_state.settings['api_enabled']:
-                if f'KW{i} Difficulty' in filtered_results.columns:
-                    display_cols.append(f'KW{i} Difficulty')
-    
-    # Show dataframe with styling
-    st.dataframe(
-        filtered_results[display_cols].head(50),
-        use_container_width=True,
-        height=400
-    )
-    
-    # Download options
-    st.subheader("💾 Export Results")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        csv = filtered_results.to_csv(index=False)
-        st.download_button(
-            label="Download as CSV",
-            data=csv,
-            file_name=f"striking_distance_opportunities_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv"
-        )
-    
-    with col2:
-        # Excel download with formatting
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            filtered_results.to_excel(writer, index=False, sheet_name='Opportunities')
-            
-            # Add formatting
-            workbook = writer.book
-            worksheet = writer.sheets['Opportunities']
-            
-            # Format headers
-            header_format = workbook.add_format({
-                'bold': True,
-                'text_wrap': True,
-                'valign': 'top',
-                'bg_color': '#D7E4BD',
-                'border': 1
-            })
-            
-            for col_num, value in enumerate(filtered_results.columns.values):
-                worksheet.write(0, col_num, value, header_format)
+    # Keyword opportunity filter
+    if kw_filter == "With Opportunities Only":
+        # Find rows with at least one 'False' in keyword checks
+        mask = pd.Series(False, index=filtered_df.index)
+        for i in range(1, 6):
+            for element in ['Title', 'H1', 'Copy']:
+                col = f'KW{i} in {element}'
+                if col in filtered_df.columns:
+                    mask = mask | (filtered_df[col] == False)
         
-        excel_data = output.getvalue()
-        st.download_button(
-            label="Download as Excel",
-            data=excel_data,
-            file_name=f"striking_distance_opportunities_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        filtered_df = filtered_df[mask]
+        
+    elif kw_filter == "Without Any Optimization":
+        # Find rows with no 'True' in keyword checks
+        mask = pd.Series(True, index=filtered_df.index)
+        for i in range(1, 6):
+            for element in ['Title', 'H1', 'Copy']:
+                col = f'KW{i} in {element}'
+                if col in filtered_df.columns:
+                    mask = mask & (filtered_df[col] != True)
+        
+        filtered_df = filtered_df[mask]
+    
+    # Show visualization
+    if not filtered_df.empty:
+        with st.expander("📊 Opportunity Visualization", expanded=True):
+            st.subheader("Top Striking Distance Opportunities")
+            
+            # Get visualizations module
+            imports = load_imports()
+            create_opportunity_chart = imports["create_opportunity_chart"]
+            
+            fig = create_opportunity_chart(filtered_df)
+            st.plotly_chart(fig, use_container_width=True)
+    
+    # Show result table
+    st.subheader("📋 Detailed Results")
+    if not filtered_df.empty:
+        # Prepare display columns
+        base_cols = ['URL', 'Title', 'Striking Dist. Vol', 'KWs in Striking Dist.']
+        kw_cols = []
+        
+        for i in range(1, 6):
+            kw_base = f'KW{i}'
+            vol_col = f'{kw_base} Vol'
+            diff_col = f'{kw_base} Difficulty'
+            
+            if kw_base in filtered_df.columns:
+                kw_cols.extend([kw_base, vol_col])
+                
+                if diff_col in filtered_df.columns:
+                    kw_cols.append(diff_col)
+                
+                for element in ['Title', 'H1', 'Copy']:
+                    check_col = f'{kw_base} in {element}'
+                    if check_col in filtered_df.columns:
+                        kw_cols.append(check_col)
+        
+        display_cols = base_cols + [col for col in kw_cols if col in filtered_df.columns]
+        
+        # Show dataframe
+        st.dataframe(filtered_df[display_cols], use_container_width=True)
+        
+        # Download options
+        col1, col2 = st.columns(2)
+        with col1:
+            csv = filtered_df.to_csv(index=False)
+            st.download_button(
+                "📥 Download Results (CSV)",
+                data=csv,
+                file_name=f"striking_distance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+        
+        with col2:
+            # Get Excel export function from utils
+            try:
+                import io
+                from io import BytesIO
+                import xlsxwriter
+                
+                buffer = BytesIO()
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    filtered_df.to_excel(writer, index=False, sheet_name='Striking Distance')
+                    workbook = writer.book
+                    worksheet = writer.sheets['Striking Distance']
+                    
+                    # Add conditional formatting for True/False
+                    fmt_true = workbook.add_format({'bg_color': '#c6efce', 'font_color': '#006100'})
+                    fmt_false = workbook.add_format({'bg_color': '#ffc7ce', 'font_color': '#9c0006'})
+                    
+                    for i, col in enumerate(display_cols):
+                        if 'in' in col and col in filtered_df.columns:
+                            worksheet.conditional_format(1, i, len(filtered_df) + 1, i, 
+                                                        {'type': 'text',
+                                                         'criteria': 'containing',
+                                                         'value': 'True',
+                                                         'format': fmt_true})
+                            worksheet.conditional_format(1, i, len(filtered_df) + 1, i, 
+                                                        {'type': 'text',
+                                                         'criteria': 'containing',
+                                                         'value': 'False',
+                                                         'format': fmt_false})
+                
+                buffer.seek(0)
+                st.download_button(
+                    "📥 Download Results (Excel)",
+                    data=buffer,
+                    file_name=f"striking_distance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.ms-excel"
+                )
+            except Exception as e:
+                st.error(f"Excel export error: {str(e)}")
+    else:
+        st.info("No results match your filters. Try adjusting your criteria.")
 
-def show_visualizations():
-    if st.session_state.processed_data is None:
-        st.info("Please run the analysis first to see visualizations.")
-        return
-    
-    results = st.session_state.processed_data
-    
-    # Opportunity Distribution Chart
-    st.subheader("📊 Opportunity Distribution")
-    fig_dist = create_keyword_distribution(results)
-    st.plotly_chart(fig_dist, use_container_width=True)
-    
-    # Top Opportunities Chart
-    st.subheader("🏆 Top 20 Opportunities by Volume")
-    fig_top = create_opportunity_chart(results.head(20))
-    st.plotly_chart(fig_top, use_container_width=True)
-    
-    # Keyword difficulty analysis (if API data available)
-    if 'Avg Difficulty' in results.columns:
-        st.subheader("📈 Difficulty vs Opportunity Analysis")
-        # Scatter plot implementation would go here
+def show_visualizations(pd, create_opportunity_chart, create_keyword_distribution):
+    """Show visualizations of the data"""
+    if st.session_state.processed_data is not None:
+        results = st.session_state.processed_data
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Top URL Opportunities")
+            fig1 = create_opportunity_chart(results)
+            st.plotly_chart(fig1, use_container_width=True)
+        
+        with col2:
+            st.subheader("Keyword Distribution")
+            fig2 = create_keyword_distribution(results)
+            st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.info("Run the analysis first to view visualizations")
 
 def show_help():
-    st.header("📚 How to Use This Tool")
+    """Show help information"""
+    st.subheader("📚 How to Use This Tool")
     
-    with st.expander("Getting Started", expanded=True):
+    with st.expander("Step 1: Export Your Data", expanded=True):
         st.markdown("""
-        ### Step 1: Prepare Your Data
+        ### Keyword Export
+        1. **Ahrefs**: Go to Organic Keywords report > Export all rows as CSV
+        2. **SEMrush**: Go to Organic Research > Positions > Export to CSV
         
-        **Keyword Export Requirements:**
-        - CSV format from Ahrefs, SEMrush, or similar
-        - Must contain: URL, Keyword, Search Volume, Position
-        - Optional: Keyword Difficulty, CPC, etc.
+        Ensure your export has these columns:
+        - URL/Current URL
+        - Keyword
+        - Position/Current Position
+        - Volume/Search Volume
+        """)
         
-        **Crawl Export Requirements:**
-        - CSV format from Screaming Frog or similar
-        - Must contain: URL/Address, Title, H1, Page Content
-        - Enable custom extraction for page copy
+        st.markdown("""
+        ### Website Crawl
+        1. **Screaming Frog**: Run a crawl of your site
+        2. **Configuration**:
+           - Enable extraction of H1 and Title 
+           - Add custom extraction for page copy (CSS: body)
+        3. **Export**: Save as CSV with all columns
         """)
     
-    with st.expander("Understanding the Results"):
+    with st.expander("Step 2: Analyze Your Data"):
         st.markdown("""
-        ### What is "Striking Distance"?
-        
-        Keywords in striking distance are those ranking in positions 4-20 that could 
-        potentially move to the first page with minimal optimization effort.
-        
+        1. **Upload Both Files**: Use the upload buttons on the Analysis tab
+        2. **Configure Settings**:
+           - Min/Max Position: Define your "striking distance" range
+           - Min Volume: Filter out low-volume keywords
+           - Advanced Settings: Additional filtering options
+        3. **API Integration**: Connect to DataForSEO for real-time metrics
+        4. **Run Analysis**: Click the button to generate results
+        """)
+    
+    with st.expander("Step 3: Interpret Results"):
+        st.markdown("""
         ### Key Metrics:
-        - **Striking Dist. Vol**: Combined search volume of all keywords in range
-        - **KWs in Striking Dist.**: Count of keywords within the position range
-        - **Difficulty**: Average keyword difficulty (when API is enabled)
+        - **Striking Dist. Vol**: Combined search volume of keywords in range
+        - **KWs in Striking Dist**: Number of keywords within position range
+        - **Avg Difficulty**: Average keyword difficulty (with API)
         
-        ### Optimization Flags:
-        - ✅ **True**: Keyword appears in the element
-        - ❌ **False**: Keyword missing from the element (optimization opportunity)
+        ### Optimization Status:
+        - ✅ **True**: Keyword is found in the element
+        - ❌ **False**: Optimization opportunity
+        - **Blank**: No keyword to check
+        """)
+        
+        st.markdown("""
+        ### Prioritize Opportunities:
+        1. Focus on high-volume, low-difficulty keywords
+        2. Look for pages with multiple keywords in striking distance
+        3. Target keywords missing from title and H1 first
         """)
     
-    with st.expander("API Integration"):
+    with st.expander("Step 4: Download & Share"):
         st.markdown("""
-        ### Why Use API Integration?
+        ### Export Options:
+        - **CSV Export**: Basic data export
+        - **Excel Export**: Formatted with conditional formatting
         
-        API integration provides real-time data for:
-        - Accurate search volumes
-        - Keyword difficulty scores
-        - Competition metrics
-        - SERP features
-        
-        ### Supported APIs:
-        1. **DataForSEO**: Best for bulk keyword data
-        2. **SEMrush**: Comprehensive competitive data
-        3. **Ahrefs**: Detailed backlink and keyword metrics
+        ### Recommended Workflow:
+        1. Share with content team for implementation
+        2. Track changes in a project management tool
+        3. Re-run analysis after 4-6 weeks to measure progress
         """)
 
+# Run the app
 if __name__ == "__main__":
     main()
