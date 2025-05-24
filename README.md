@@ -74,22 +74,35 @@ Must contain these columns:
 
 ## 🔌 API Integration
 
-### Supported Providers
-1. **DataForSEO** - Best for bulk keyword data
-2. **SEMrush** - Comprehensive competitive insights
-3. **Ahrefs** - Detailed backlink and keyword metrics
+### DataForSEO Integration
+The app integrates with DataForSEO to fetch real-time keyword metrics:
+- **Search Volume**: Current monthly search volume
+- **Competition Index**: Keyword difficulty (0-100)
+- **CPC**: Cost-per-click data
+- **Competition Level**: HIGH, MEDIUM, LOW
 
-### Setup
-1. Enable API in the sidebar
-2. Select your provider
-3. Enter credentials
-4. Test connection
+### Setup Instructions
+1. **Get DataForSEO Account**:
+   - Sign up at [DataForSEO](https://dataforseo.com/)
+   - Navigate to [API Access](https://app.dataforseo.com/api-access)
+   - Copy your email and API key
 
-### Benefits
-- Real-time search volumes
-- Keyword difficulty scores
-- Competition metrics
-- Cost-per-click data
+2. **Configure in App**:
+   - Enable "Enable API for keyword metrics" in sidebar
+   - Enter your DataForSEO email
+   - Enter your DataForSEO API key
+   - Click "Test Connection"
+
+### Cost Optimization
+- Keywords are batched up to **1,000 per request**
+- Cost: $0.075 per batch (not per keyword!)
+- Example: 5,000 keywords = 5 requests = $0.375 total
+
+### API Benefits
+- **Real-time data**: Always get current search volumes
+- **Difficulty scores**: Identify easy-win opportunities
+- **CPC insights**: Understand commercial value
+- **Bulk processing**: Handle thousands of keywords efficiently
 
 ## ⚙️ Configuration Options
 
