@@ -1,184 +1,67 @@
-# 🎯 SEO Striking Distance Analyzer - Enhanced Edition
+# SEO Striking Distance Keyword Finder
 
-An improved Python tool for identifying and optimizing keyword opportunities in "striking distance" - keywords ranking in positions 4-20 that could potentially reach the first page with minimal optimization effort.
+A Streamlit application that helps SEO professionals identify "striking distance" keyword opportunities - keywords that are ranking in positions 4-20 and could be improved with targeted optimization.
 
-## 🚀 Key Improvements Over Original
+## Overview
 
-### Performance Enhancements
-- **Vectorized Operations**: 3-5x faster data processing using pandas vectorization
-- **Smart Caching**: Streamlit's caching reduces reload times by 80%
-- **Batch Processing**: Efficient handling of large datasets
-- **Memory Optimization**: Reduced memory footprint by 40%
+This tool helps you:
 
-### New Features
-- **API Integration**: Real-time keyword metrics (volume, difficulty, CPC)
-- **Interactive Visualizations**: Plotly charts for data exploration
-- **Advanced Filtering**: Dynamic filters for volume, difficulty, and keyword count
-- **Excel Export**: Formatted Excel files with styling
-- **Progress Tracking**: Real-time progress indicators
+1. Identify which pages on your site have keywords ranking in positions 4-20 (configurable)
+2. Find opportunities where keywords aren't properly utilized in titles, H1s, or content
+3. Prioritize by search volume and opportunity size
 
-### Better User Experience
-- **Modern UI**: Clean, intuitive Streamlit interface
-- **Help Documentation**: Built-in guides and tooltips
-- **Error Handling**: Graceful error recovery and user-friendly messages
-- **Session Management**: Preserves state between interactions
+## Features
 
-## 📋 Requirements
+- User-friendly Streamlit interface with configuration options
+- Support for keyword exports from Ahrefs, Semrush, and other SEO tools
+- Compatible with Screaming Frog crawl exports
+- Customizable position range and minimum search volume
+- Option to filter out keywords already used in title, H1, and content
+- CSV export of results for further analysis
 
-- Python 3.8+
-- Dependencies listed in `requirements.txt`
+## Installation
 
-## 🛠️ Installation
+1. Clone this repository or download the files
+2. Install the required dependencies:
 
-1. Clone or download this repository
-2. Navigate to the project directory:
-   ```bash
-   cd C:\Users\admin\CascadeProjects\seo-striking-distance
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-## 🚦 Quick Start
+## Usage
 
 1. Run the Streamlit app:
-   ```bash
-   streamlit run app.py
-   ```
 
-2. Prepare your data:
-   - **Keyword Export**: CSV from Ahrefs, SEMrush, or similar
-   - **Website Crawl**: CSV from Screaming Frog with custom content extraction
+```bash
+streamlit run app.py
+```
 
-3. Upload files and configure settings in the sidebar
+2. Upload your keyword export CSV file (from Ahrefs, Semrush, etc.)
+3. Upload your site crawl export CSV file (from Screaming Frog or similar)
+4. Configure the settings in the sidebar as needed
+5. Review the results and download the CSV file for your optimization plan
 
-4. Click "Run Analysis" to generate opportunities
+## Required Data Formats
 
-## 📊 Data Requirements
+### Keyword Export
+The keyword export should contain at least these columns:
+- URL or Current URL: The URL of the page
+- Keyword: The target keyword
+- Volume or Search Volume: Monthly search volume
+- Position or Current position: Current ranking position
 
-### Keyword Export CSV
-Must contain these columns:
-- `URL` or `Current URL`
-- `Keyword`
-- `Volume` or `Search Volume`
-- `Position` or `Current position`
+### Crawl Export
+The crawl export should contain at least these columns:
+- Address: The URL of the page
+- Indexability: Whether the page is indexable
+- Title 1: The page title
+- H1-1: The primary H1 heading
+- Copy 1: The page content (requires custom extraction in Screaming Frog)
 
-### Crawl Export CSV
-Must contain these columns:
-- `Address` or `URL`
-- `Title 1` or `Title`
-- `H1-1` or `H1`
-- `Copy 1` or `Copy`
-- `Indexability` (optional but recommended)
+## Credits
 
-## 🔌 API Integration
+This tool is based on the Python + Streamlit SEO striking distance concept from Search Engine Journal.
 
-### DataForSEO Integration
-The app integrates with DataForSEO to fetch real-time keyword metrics:
-- **Search Volume**: Current monthly search volume
-- **Competition Index**: Keyword difficulty (0-100)
-- **CPC**: Cost-per-click data
-- **Competition Level**: HIGH, MEDIUM, LOW
+## License
 
-### Setup Instructions
-1. **Get DataForSEO Account**:
-   - Sign up at [DataForSEO](https://dataforseo.com/)
-   - Navigate to [API Access](https://app.dataforseo.com/api-access)
-   - Copy your email and API key
-
-2. **Configure in App**:
-   - Enable "Enable API for keyword metrics" in sidebar
-   - Enter your DataForSEO email
-   - Enter your DataForSEO API key
-   - Click "Test Connection"
-
-### Cost Optimization
-- Keywords are batched up to **1,000 per request**
-- Cost: $0.075 per batch (not per keyword!)
-- Example: 5,000 keywords = 5 requests = $0.375 total
-
-### API Benefits
-- **Real-time data**: Always get current search volumes
-- **Difficulty scores**: Identify easy-win opportunities
-- **CPC insights**: Understand commercial value
-- **Bulk processing**: Handle thousands of keywords efficiently
-
-## ⚙️ Configuration Options
-
-### Position Range
-- **Min Position**: Default 4 (customize based on your needs)
-- **Max Position**: Default 20 (extend for broader opportunities)
-
-### Volume Threshold
-- **Minimum Volume**: Default 10 (filter low-value keywords)
-
-### Advanced Settings
-- **Drop Optimized**: Remove keywords already in title, H1, and copy
-- **Pagination Filters**: Exclude paginated URLs
-
-## 📈 Understanding Results
-
-### Key Metrics
-- **Striking Dist. Vol**: Combined search volume of keywords in range
-- **KWs in Striking Dist.**: Number of keywords within position range
-- **Avg Difficulty**: Average keyword difficulty (with API)
-
-### Optimization Indicators
-- ✅ **True**: Keyword found in element
-- ❌ **False**: Optimization opportunity
-- **Blank**: No keyword to check
-
-### Visualizations
-1. **Opportunity Chart**: Top pages by search volume potential
-2. **Distribution Analysis**: Keywords per page breakdown
-3. **Difficulty Scatter**: Volume vs difficulty quadrant analysis
-4. **Optimization Matrix**: Heatmap of optimization status
-
-## 🎯 Optimization Strategy
-
-1. **Quick Wins**: Focus on high-volume keywords missing from titles
-2. **Content Gaps**: Add missing keywords naturally to page copy
-3. **Title Optimization**: Include primary keyword in page title
-4. **H1 Alignment**: Ensure H1 contains target keyword
-5. **Natural Integration**: Avoid keyword stuffing
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**"No data found"**
-- Check column names match requirements
-- Ensure URLs match between files
-- Verify position range settings
-
-**"API connection failed"**
-- Verify credentials are correct
-- Check API quota/limits
-- Ensure internet connection
-
-**"Memory error"**
-- Process smaller batches
-- Increase available RAM
-- Use filtering to reduce dataset
-
-## 🤝 Contributing
-
-Suggestions and improvements are welcome! Feel free to:
-- Report bugs
-- Suggest features
-- Submit pull requests
-
-## 📄 License
-
-This project is open source and available under the MIT License.
-
-## 🙏 Acknowledgments
-
-- Original concept inspired by the Search Engine Journal article
-- Built with Streamlit, Pandas, and Plotly
-- API integrations for DataForSEO, SEMrush, and Ahrefs
-
----
-
-**Pro Tip**: For best results, run monthly to track progress and identify new opportunities!
+MIT
