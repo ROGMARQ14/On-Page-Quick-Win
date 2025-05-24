@@ -265,135 +265,114 @@ class KeywordAnalyzer:
                 keywords = df[kw_col].dropna().unique().tolist()
                 all_keywords.extend(keywords)
         
-        # Remove duplicates
-        all_keywords = list(set(all_keywords))
+        # Remove duplicates and empty strings
+        all_keywords = [kw for kw in set(all_keywords) if kw]
         
-        # Fetch data in batches
-        keyword_data = self.api_client.get_keyword_data_batch(all_keywords)
+        if not all_keywords:
+            return df
+        
+        # Fetch data in batches (API returns lowercase keys)
+        with st.spinner(f"Fetching metrics for {len(all_keywords)} keywords..."):
+            keyword_data = self.api_client.get_keyword_data_batch(all_keywords)
         
         # Update dataframe with API data
         for i in range(1, 6):
             kw_col = f'KW{i}'
             if kw_col in df.columns:
                 # Add difficulty column
-                df[f'{kw_col} Difficulty'] = df[kw_col].map(
-                    lambda kw: keyword_data.get(kw, {}).get('difficulty', '')
+                df[f'{kw_col} Difficulty'] = df[kw_col].apply(
+                    lambda kw: keyword_data.get(kw.lower() if pd.notna(kw) else '', {}).get('difficulty', '') if kw else ''
                 )
                 
-                # Update volume if available
-                api_volumes = df[kw_col].map(
-                    lambda kw: keyword_data.get(kw, {}).get('volume', None)
+                # Add CPC column
+                df[f'{kw_col} CPC'] = df[kw_col].apply(
+                    lambda kw: keyword_data.get(kw.lower() if pd.notna(kw) else '', {}).get('cpc', '') if kw else ''
+                )
+                
+                # Update volume if available from API
+                api_volumes = df[kw_col].apply(
+                    lambda kw: keyword_data.get(kw.lower() if pd.notna(kw) else '', {}).get('volume', None) if kw else None
                 )
                 
                 # Only update non-null API volumes
                 mask = api_volumes.notna()
-                df.loc[mask, f'{kw_col} Vol'] = api_volumes[mask]
+                if mask.any():
+                    df.loc[mask, f'{kw_col} Vol'] = api_volumes[mask]
         
         # Calculate average difficulty
         difficulty_cols = [f'KW{i} Difficulty' for i in range(1, 6) if f'KW{i} Difficulty' in df.columns]
         if difficulty_cols:
             df['Avg Difficulty'] = df[difficulty_cols].replace('', np.nan).mean(axis=1)
         
+        # Recalculate total volume after API updates
+        vol_cols = [f'KW{i} Vol' for i in range(1, 6) if f'KW{i} Vol' in df.columns]
+        if vol_cols:
+            df['Striking Dist. Vol'] = df[vol_cols].fillna(0).sum(axis=1)
+        
         return df
 
 class APIClient:
-    """Handle API connections for keyword data"""
+    """Client for fetching keyword data from various SEO APIs"""
     
-    def __init__(self, username: str, password: str, provider: str = 'dataforseo'):
-        self.username = username
+    def __init__(self, email: str, password: str, provider: str = 'dataforseo'):
+        self.email = email
         self.password = password
-        self.provider = provider
-        self.base_url = self._get_base_url()
+        self.provider = provider.lower()
+        self.base_url = 'https://api.dataforseo.com/v3'
         self.session = requests.Session()
         self._setup_auth()
     
-    def _get_base_url(self) -> str:
-        """Get API base URL based on provider"""
-        urls = {
-            'dataforseo': 'https://api.dataforseo.com/v3',
-            'semrush': 'https://api.semrush.com',
-            'ahrefs': 'https://api.ahrefs.com/v3'
-        }
-        return urls.get(self.provider.lower(), urls['dataforseo'])
-    
     def _setup_auth(self):
         """Setup authentication for API requests"""
-        if self.provider == 'dataforseo':
-            # Basic auth for DataForSEO
-            credentials = f"{self.username}:{self.password}"
-            encoded = base64.b64encode(credentials.encode()).decode()
-            self.session.headers['Authorization'] = f'Basic {encoded}'
-        else:
-            # Token-based auth for others
-            self.session.headers['Authorization'] = f'Bearer {self.password}'
+        # DataForSEO uses basic auth with email:password
+        credentials = f"{self.email}:{self.password}"
+        encoded = base64.b64encode(credentials.encode()).decode()
+        self.session.headers['Authorization'] = f'Basic {encoded}'
+        self.session.headers['Content-Type'] = 'application/json'
     
     def test_connection(self) -> bool:
         """Test API connection"""
         try:
-            if self.provider == 'dataforseo':
-                response = self.session.get(f"{self.base_url}/appendix/user_data")
-                return response.status_code == 200
-            return True
+            response = self.session.get(f"{self.base_url}/appendix/user_data")
+            return response.status_code == 200
         except Exception:
             return False
     
-    @lru_cache(maxsize=1000)
-    def get_keyword_data(self, keyword: str) -> Dict:
-        """Get data for a single keyword with caching"""
-        if self.provider == 'dataforseo':
-            return self._get_dataforseo_keyword(keyword)
-        return {}
-    
-    def get_keyword_data_batch(self, keywords: List[str], batch_size: int = 100) -> Dict:
-        """Get data for multiple keywords efficiently"""
+    def get_keyword_data_batch(self, keywords: List[str], location_code: int = 2840) -> Dict:
+        """
+        Get data for multiple keywords efficiently.
+        Batches up to 1,000 keywords per request to minimize costs.
+        
+        Args:
+            keywords: List of keywords to fetch data for
+            location_code: Location code (default 2840 for USA)
+            
+        Returns:
+            Dict mapping keywords to their metrics
+        """
         results = {}
         
-        # Process in batches
+        # Process in batches of up to 1,000 keywords (DataForSEO limit)
+        batch_size = 1000
+        
         for i in range(0, len(keywords), batch_size):
             batch = keywords[i:i + batch_size]
-            
-            if self.provider == 'dataforseo':
-                batch_results = self._get_dataforseo_batch(batch)
-                results.update(batch_results)
+            batch_results = self._get_dataforseo_batch(batch, location_code)
+            results.update(batch_results)
         
         return results
     
-    def _get_dataforseo_keyword(self, keyword: str) -> Dict:
-        """Get keyword data from DataForSEO"""
-        try:
-            endpoint = f"{self.base_url}/keywords_data/google_ads/search_volume/live"
-            
-            data = [{
-                "keywords": [keyword],
-                "location_code": 2840,  # USA
-                "language_code": "en"
-            }]
-            
-            response = self.session.post(endpoint, json=data)
-            
-            if response.status_code == 200:
-                result = response.json()
-                if result['tasks'][0]['result'][0]['items']:
-                    item = result['tasks'][0]['result'][0]['items'][0]
-                    return {
-                        'volume': item.get('search_volume', 0),
-                        'difficulty': item.get('competition_index', 0) * 100,
-                        'cpc': item.get('cpc', 0)
-                    }
-        except Exception:
-            pass
-        
-        return {}
-    
-    def _get_dataforseo_batch(self, keywords: List[str]) -> Dict:
+    def _get_dataforseo_batch(self, keywords: List[str], location_code: int) -> Dict:
         """Get batch keyword data from DataForSEO"""
         try:
             endpoint = f"{self.base_url}/keywords_data/google_ads/search_volume/live"
             
+            # Prepare request data
             data = [{
                 "keywords": keywords,
-                "location_code": 2840,  # USA
-                "language_code": "en"
+                "location_code": location_code,
+                "language_code": "en",
+                "search_partners": False  # Don't include search partners
             }]
             
             response = self.session.post(endpoint, json=data)
@@ -402,17 +381,34 @@ class APIClient:
                 result = response.json()
                 keyword_data = {}
                 
-                if result['tasks'][0]['result'][0]['items']:
-                    for item in result['tasks'][0]['result'][0]['items']:
+                # Check if we have valid results
+                if (result.get('tasks') and 
+                    result['tasks'][0].get('result') and 
+                    result['tasks'][0]['result']):
+                    
+                    # Process each keyword result
+                    for item in result['tasks'][0]['result']:
                         keyword = item.get('keyword', '')
-                        keyword_data[keyword] = {
-                            'volume': item.get('search_volume', 0),
-                            'difficulty': item.get('competition_index', 0) * 100,
-                            'cpc': item.get('cpc', 0)
+                        
+                        # Get the most recent search volume
+                        search_volume = item.get('search_volume', 0)
+                        
+                        # Convert competition to difficulty score (0-100)
+                        competition_index = item.get('competition_index', 0)
+                        
+                        # Extract CPC
+                        cpc = item.get('cpc', 0)
+                        
+                        keyword_data[keyword.lower()] = {
+                            'volume': search_volume,
+                            'difficulty': competition_index,
+                            'cpc': cpc,
+                            'competition': item.get('competition', 'UNKNOWN')
                         }
                 
                 return keyword_data
-        except Exception:
-            pass
+                
+        except Exception as e:
+            st.error(f"API Error: {str(e)}")
         
         return {}
